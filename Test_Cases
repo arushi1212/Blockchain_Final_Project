@@ -1,0 +1,19 @@
+const { expect } = require("chai");
+const { ethers } = require("hardhat");
+
+describe ("Marketplace", function () {
+    let MovieTicket;
+    let movieTicket;
+    let admin;
+    let user;
+    let movieId;
+
+    beforeEach(async function() {
+        [admin, user] = await ethers.getSigners();
+        MovieTicket = await ethers.getContractFactory("MovieTicket");
+        movieTicket = await MovieTicket.deploy();
+    });
+
+})
+
+
