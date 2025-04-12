@@ -14,15 +14,36 @@ contract MovieTheater {
         uint256 price; 
         uint256 totalseats;
         uint256 availableseats;
-        uint256 showtime;
-        address[] ticketholders;
-        mapping(address => uint) ticketsbought;
     }
 
-    mapping(uint => Movie) public movies;
+    mapping(uint => Movie) private movies; //movies contans all the individual Movie structs
 
-    modifier onlyowner() {
+    //actions only the owner can perform
+    modifier onlyOwner() {
         require(msg.sender == owner, "Only the admin can do this.");
         _;
+    }
+
+    //double checking movie existence
+    modifier movieExists(uint movieid) {
+        require(movieid < moviecount, "Movie does not exist.");
+        _;
+    }
+
+    function addMovie(
+        string memory _title,
+        uint256 _price,
+        uint256 _totalseats,
+        uint256 _showtime
+    ) public onlyOwner {
+
+        movies[moviecount] = Movie({
+            title: _title,
+            price: _price,
+            totalseats: _totalseats,
+            availableseats: _totalseats,
+        });
+
+        moviecount++;
     }
 }
