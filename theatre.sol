@@ -46,4 +46,7 @@ contract MovieTheater {
 
         moviecount++;
     }
+    function buyMovie(string name) {
+        assert()
+    }
 }
