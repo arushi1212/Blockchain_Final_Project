@@ -14,6 +14,8 @@ contract MovieTheater {
         uint256 price; 
         uint256 totalseats;
         uint256 availableseats;
+        uint256 ticketsPurchased;
+        address[] ticketHolders;
     }
 
     mapping(uint => Movie) private movies; //movies contans all the individual Movie structs
@@ -42,11 +44,24 @@ contract MovieTheater {
             price: _price,
             totalseats: _totalseats,
             availableseats: _totalseats,
+            ticketsPurchased: 0;
         });
 
         moviecount++;
     }
-    function buyMovie(string name) {
-        assert()
+    // Funtion to purchase movie tickets
+    function buyMovie(string name) { 
+        uint movieID = 0;
+        for (int i = 0; i < moviecount; i++) {
+            if (movies[moviecount].title == name) {
+                movieID = i;
+            }
+        }
+        require(movieID != 0, "movie does not exist");
+        require(movies[movieID].availableseats != 0, "movie is full");
+        movies[movieID].availableseats--;
+        payable(msg.sender).transfer(movies[movieID].price);
+        movies[movieID].ticketHolders[movies[movieID]] = msg.sender;
+        movies[movieID].ticketsPurchased++;
     }
 }
