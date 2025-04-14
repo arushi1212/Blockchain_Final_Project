@@ -1,12 +1,22 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
+// Interface for ERC20 token
+interface IERC20 {
+    function transferFrom(address sender, address recipient, uint amount) external returns (bool);
+    function balanceOf(address account) external view returns (uint);
+}
 
 contract MovieTheater {
+    IERC20 public token;
     address public owner;
     uint256 public moviecount = 0;
 
     constructor() {
         owner = msg.sender;
+    }
+
+    constructor(address _tokenAddress) {
+        token = IERC20(_tokenAddress);
     }
 
     struct Movie {
@@ -51,6 +61,7 @@ contract MovieTheater {
     }
     // Funtion to purchase movie tickets
     function buyMovie(string name) { 
+        uint balance = token.balanceof(msg.sender);
         uint movieID = 0;
         for (int i = 0; i < moviecount; i++) {
             if (movies[moviecount].title == name) {
@@ -59,9 +70,12 @@ contract MovieTheater {
         }
         require(movieID != 0, "movie does not exist");
         require(movies[movieID].availableseats != 0, "movie is full");
+        require(balance > movies[movieID].price, "Insufficient funds");
+        bool success = token.transferFrom(msg.sender, address(this), _amount);
+        require(success, "Transfer failed");
         movies[movieID].availableseats--;
-        payable(msg.sender).transfer(movies[movieID].price);
         movies[movieID].ticketHolders[movies[movieID]] = msg.sender;
         movies[movieID].ticketsPurchased++;
+        
     }
 }
