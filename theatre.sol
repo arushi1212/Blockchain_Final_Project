@@ -6,25 +6,24 @@ interface IERC20 {
     function balanceOf(address account) external view returns (uint);
 }
 
+
+
 contract MovieTheater {
     IERC20 public token;
     address public owner;
     uint256 public moviecount = 0;
 
-    constructor() {
-        owner = msg.sender;
-    }
-
     constructor(address _tokenAddress) {
+        owner = msg.sender;
         token = IERC20(_tokenAddress);
     }
+    
 
     struct Movie {
         string title;
         uint256 price; 
         uint256 totalseats;
         uint256 availableseats;
-        uint256 ticketsPurchased;
         address[] ticketHolders;
     }
 
@@ -48,34 +47,36 @@ contract MovieTheater {
         uint256 _totalseats,
         uint256 _showtime
     ) public onlyOwner {
+        address[] memory emptyArray;
 
         movies[moviecount] = Movie({
             title: _title,
             price: _price,
             totalseats: _totalseats,
             availableseats: _totalseats,
-            ticketsPurchased: 0;
+            ticketHolders: emptyArray
         });
 
         moviecount++;
     }
     // Funtion to purchase movie tickets
-    function buyMovie(string name) { 
-        uint balance = token.balanceof(msg.sender);
-        uint movieID = 0;
-        for (int i = 0; i < moviecount; i++) {
-            if (movies[moviecount].title == name) {
+    function buyMovie(string memory name) external{ 
+        uint balance = token.balanceOf(msg.sender);
+        uint movieID = moviecount;
+        for (uint i = 0; i < moviecount; i++) {
+            if (keccak256(abi.encodePacked(movies[i].title)) == keccak256(abi.encodePacked(name))) {
                 movieID = i;
+                break;
             }
         }
-        require(movieID != 0, "movie does not exist");
+        require(movieID < moviecount, "movie does not exist");
         require(movies[movieID].availableseats != 0, "movie is full");
         require(balance > movies[movieID].price, "Insufficient funds");
-        bool success = token.transferFrom(msg.sender, address(this), _amount);
+        bool success = token.transferFrom(msg.sender, address(this), movies[movieID].price);
         require(success, "Transfer failed");
         movies[movieID].availableseats--;
-        movies[movieID].ticketHolders[movies[movieID]] = msg.sender;
-        movies[movieID].ticketsPurchased++;
+        movies[movieID].ticketHolders.push(msg.sender);
+
         
     }
 }
