@@ -31,7 +31,7 @@ contract MovieTicket {
 
     //actions only the owner can perform
     modifier onlyOwner() {
-        require(msg.sender == owner, "Only the admin can do this.");
+        require(msg.sender == owner, "Only admin can perform this action");
         _;
     }
 
@@ -47,6 +47,9 @@ contract MovieTicket {
         uint256 _totalseats,
         uint256 _showtime
     ) public onlyOwner {
+        require(_price > 0, "Price must be more than 0");
+        require(_totalseats > 0, "Total seats must be more than 0"); 
+
         address[] memory emptyArray;
 
         movies[moviecount] = Movie({
