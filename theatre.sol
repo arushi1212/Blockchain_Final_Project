@@ -8,7 +8,7 @@ interface IERC20 {
 
 
 
-contract MovieTheater {
+contract MovieTicket {
     IERC20 public token;
     address public owner;
     uint256 public moviecount = 0;
@@ -60,7 +60,7 @@ contract MovieTheater {
         moviecount++;
     }
     // Funtion to purchase movie tickets
-    function buyMovie(string memory name) external{ 
+    function buyTicket(string memory name) external{ 
         uint balance = token.balanceOf(msg.sender);
         uint movieID = moviecount;
         for (uint i = 0; i < moviecount; i++) {
