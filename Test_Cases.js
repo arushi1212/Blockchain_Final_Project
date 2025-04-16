@@ -5,116 +5,104 @@ describe ("Marketplace", function () {
     let MovieTicket;
     let movieTicket;
     let admin;
-    let user;
-    let movieId;
+    let user1;
+    let user2;
+    let Token;
+    let token;
 
-    beforeEach(async function() {
-        [admin, user] = await ethers.getSigners();
-        MovieTicket = await ethers.getContractFactory("MovieTicket");
-        movieTicket = await MovieTicket.deploy();
+    const initialSupply = ethers.parseEther("1000");
+    const ticketPrice = ethers.parseEther("10");
+
+    beforeEach(async function () {
+      [admin, user1, user2] = await ethers.getSigners();
+
+      // Deploy a mock ERC20 token
+      Token = await ethers.getContractFactory("MyToken");
+      token = await Token.deploy("TestToken", "TT", initialSupply);
+      await token.waitForDeployment();
+
+      // Deploy MovieTicket contract with the ERC20 token address
+      MovieTicket = await ethers.getContractFactory("MovieTicket");
+      movieTicket = await MovieTicket.deploy(token.target);
+      await movieTicket.waitForDeployment();
+
+      // Transfer tokens to users
+      await token.transfer(user1.address, ethers.parseEther("100"));
+      await token.transfer(user2.address, ethers.parseEther("100"));
+
+      // Users approve MovieTicket contract to spend tokens
+      await token.connect(user1).approve(movieTicket.target, ethers.parseEther("100"));
+      await token.connect(user2).approve(movieTicket.target, ethers.parseEther("100"));
     });
+    
 
-    describe("Admin Controls", function() {
-        it("should allow admin to add a new movie", async function() {
-            const title = "Avengers";
-            const price = ethers.parseEther("100"); // 100 ether
-            const seats = 100;
+    describe("Admin Controls", function () {
+      it("should allow admin to add a movie", async function () {
+        await movieTicket.connect(admin).addMovie("Inception", ticketPrice, 50, 0);
+  
+        const movie = await movieTicket.movies(0);
+        expect(movie.title).to.equal("Inception");
+        expect(movie.price).to.equal(ticketPrice);
+        expect(movie.totalseats).to.equal(50);
+        expect(movie.availableseats).to.equal(50);
+      });
+  
+      it("should not allow non-admin to add a movie", async function () {
+        await expect(
+          movieTicket.connect(user1).addMovie("Avengers", ticketPrice, 50, 0)
+        ).to.be.revertedWith("Only the admin can do this.");
+      });
 
-            await movieTicket.connect(admin).addMovie(title, price, seats);
-
-            const movie = await movieTicket.movies(1);   //movie id is 1
-            expect(movie.title).to.equal(title);
-            expect(movie.price).to.equal(price);
-            expect(movie.totalSeats).to.equal(seats);
-        });
-
-        it("should not allow non-admin to add a movie", async function () {
-            await expect(movieTicket.connect(user).addMovie("Spiderman", ethers.parseEther(1), 100)
-        ).to.be.revertedWith("Only admin can perform this action");
-        });
-
-        it("Should not allow adding a movie with 0 seats", async function() {
-            await expect(movieTicket.connect(admin).addMovie("Free Movie", 0, 10)
-        ).to.be.revertedWith("Price must be more than 0");
-        });
+      it("should not allow adding a movie with 0 seats", async function () {
+        await expect(
+          movieTicket.connect(admin).addMovie("EmptyShow", ticketPrice, 0, 0)
+        ).to.be.revertedWith("Total seats must be greater than 0");
     });
+  });
 
     describe("Buy Tickets", function () {
-        const movieTitle = "Batman";
-        const moviePrice = ethers.parseEther("1");
-        const seats = 2;
-    
-        beforeEach(async function () {
-          await movieTicket.connect(admin).addMovie(movieTitle, moviePrice, seats);
-        });
-    
-        it("should allow user to buy a ticket", async function () {
-          await movieTicket.connect(user).buyTicket(0, { value: moviePrice });
-    
-          const movie = await movieTicket.movies(0);
-          expect(movie.availableSeats).to.equal(seats - 1);
-    
-          const buyers = await movieTicket.getBuyers(0);
-          expect(buyers).to.include(user.address);
-        });
-    
-        it("should fail if movie does not exist", async function () {
-          await expect(
-            movieTicket.connect(user).buyTicket(5, { value: moviePrice })
-          ).to.be.revertedWith("Movie does not exist");
-        });
-    
-        it("should fail if no seats are available", async function () {
-          await movieTicket.connect(user).buyTicket(0, { value: moviePrice });
-          await movieTicket.connect(user2).buyTicket(0, { value: moviePrice });
-    
-          // Third user attempts when seats are exhausted
-          await expect(
-            movieTicket.connect(admin).buyTicket(0, { value: moviePrice })
-          ).to.be.revertedWith("No seats available");
-        });
-    
-        it("should fail if payment is incorrect", async function () {
-          const wrongAmount = ethers.parseEther("0.5");
-          await expect(
-            movieTicket.connect(user).buyTicket(0, { value: wrongAmount })
-          ).to.be.revertedWith("Incorrect payment amount");
-        });
-    
-        it("should track multiple buyers", async function () {
-          await movieTicket.connect(user).buyTicket(0, { value: moviePrice });
-          await movieTicket.connect(user2).buyTicket(0, { value: moviePrice });
-    
-          const buyers = await movieTicket.getBuyers(0);
-          expect(buyers).to.include.members([user.address, user2.address]);
-        });
+      beforeEach(async function () {
+        await movieTicket.connect(admin).addMovie("Dune", ticketPrice, 2, 0);
       });
-    
-      describe("Withdraw", function () {
-        const moviePrice = ethers.parseEther("1");
-    
-        beforeEach(async function () {
-          await movieTicket.connect(admin).addMovie("Avatar", moviePrice, 1);
-          await movieTicket.connect(user).buyTicket(0, { value: moviePrice });
-        });
-    
-        it("should allow admin to withdraw funds", async function () {
-          const balanceBefore = await ethers.provider.getBalance(admin.address);
-          const tx = await movieTicket.connect(admin).withdraw();
-          const receipt = await tx.wait();
-    
-          const gasUsed = receipt.gasUsed * receipt.effectiveGasPrice;
-          const balanceAfter = await ethers.provider.getBalance(admin.address);
-    
-          expect(balanceAfter).to.be.closeTo(balanceBefore.add(moviePrice).sub(gasUsed), ethers.parseEther("0.01"));
-        });
-    
-        it("should not allow non-admin to withdraw funds", async function () {
-          await expect(movieTicket.connect(user).withdraw()).to.be.revertedWith(
-            "Only admin can perform this action"
-          );
-        });
+  
+      it("should allow user to buy a ticket with tokens", async function () {
+        await movieTicket.connect(user1).buyTicket("Dune");
+  
+        const movie = await movieTicket.movies(0);
+        expect(movie.availableseats).to.equal(1);
       });
+  
+      it("should fail if user has not approved enough tokens", async function () {
+        await token.connect(user1).approve(movieTicket.target, ethers.parseEther("5")); // too low
+  
+        await expect(
+          movieTicket.connect(user1).buyTicket("Dune")
+        ).to.be.revertedWith("Transfer failed");
+      });
+  
+      it("should fail if movie is full", async function () {
+        await movieTicket.connect(user1).buyTicket("Dune");
+        await movieTicket.connect(user2).buyTicket("Dune");
+  
+        await expect(
+          movieTicket.connect(admin).buyTicket("Dune")
+        ).to.be.revertedWith("movie is full");
+      });
+  
+      it("should fail if movie doesn't exist", async function () {
+        await expect(
+          movieTicket.connect(user1).buyTicket("NonExistentMovie")
+        ).to.be.revertedWith("movie does not exist");
+      });
+  
+      it("should track ticket holders", async function () {
+        await movieTicket.connect(user1).buyTicket("Dune");
+        await movieTicket.connect(user2).buyTicket("Dune");
+  
+        const movie = await movieTicket.movies(0);
+        expect(movie.ticketHolders.length).to.equal(2);
+      });
+    });
 
 });
 
