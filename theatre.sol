@@ -27,11 +27,11 @@ contract MovieTicket {
         address[] ticketHolders;
     }
 
-    mapping(uint => Movie) private movies; //movies contans all the individual Movie structs
+    mapping(uint => Movie) public movies; //movies contans all the individual Movie structs
 
     //actions only the owner can perform
     modifier onlyOwner() {
-        require(msg.sender == owner, "Only admin can perform this action");
+        require(msg.sender == owner, "Only the admin can do this.");
         _;
     }
 
@@ -45,10 +45,9 @@ contract MovieTicket {
         string memory _title,
         uint256 _price,
         uint256 _totalseats,
-        uint256 _showtime
     ) public onlyOwner {
         require(_price > 0, "Price must be more than 0");
-        require(_totalseats > 0, "Total seats must be more than 0"); 
+        require(_totalseats > 0, "Total seats must be greater than 0"); 
 
         address[] memory emptyArray;
 
@@ -74,7 +73,7 @@ contract MovieTicket {
         }
         require(movieID < moviecount, "movie does not exist");
         require(movies[movieID].availableseats != 0, "movie is full");
-        require(balance > movies[movieID].price, "Insufficient funds");
+        require(balance >= movies[movieID].price, "Insufficient funds");
         bool success = token.transferFrom(msg.sender, address(this), movies[movieID].price);
         require(success, "Transfer failed");
         movies[movieID].availableseats--;
