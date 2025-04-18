@@ -1,24 +1,22 @@
-const hre = require("hardhat");
+const { ethers } = require("hardhat");
 
 async function main() {
-  const [deployer] = await hre.ethers.getSigners();
+    const [deployer] = await ethers.getSigners();
+    console.log("Deploying contracts with account:", deployer.address);
 
-  console.log("Deploying contracts with account:", deployer.address);
+    // Get the contract factory for the 'theatre' contract
+    const Theatre = await ethers.getContractFactory("theatre");
 
-  const Token = await hre.ethers.getContractFactory("MyToken");
-  const token = await Token.deploy();
-  await token.waitForDeployment();
+    // Deploy the contract
+    const theatre = await Theatre.deploy();
 
-  console.log("Token deployed to:", token.target);
-
-  const MovieTicket = await hre.ethers.getContractFactory("MovieTicket");
-  const movieTicket = await MovieTicket.deploy(token.target);
-  await movieTicket.waitForDeployment();
-
-  console.log("MovieTicket deployed to:", movieTicket.target);
+    console.log("Theatre contract deployed to:", theatre.address);
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+main()
+    .then(() => process.exit(0))
+    .catch((error) => {
+        console.error(error);
+        process.exit(1);
+    });
+
