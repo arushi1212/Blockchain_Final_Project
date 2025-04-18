@@ -1,21 +1,17 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
-// Interface for ERC20 token
-interface IERC20 {
-    function transferFrom(address sender, address recipient, uint amount) external returns (bool);
-    function balanceOf(address account) external view returns (uint);
-}
 
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-
-contract MovieTicket {
-    IERC20 public token;
+//theatre contract inheriting from ERC20
+contract theatre is ERC20 {
     address public owner;
     uint256 public moviecount = 0;
 
-    constructor(address _tokenAddress) {
+    // Constructor that initializes the ERC20 token with a name and symbol
+    constructor() ERC20("MockToken", "MTK") {
         owner = msg.sender;
-        token = IERC20(_tokenAddress);
+        _mint(owner, 1000000 ether); // Mint initial supply to owner (1M tokens)
     }
     
 
@@ -27,7 +23,7 @@ contract MovieTicket {
         address[] ticketHolders;
     }
 
-    mapping(uint => Movie) private movies; //movies contans all the individual Movie structs
+    mapping(uint => Movie) public movies; //movies contans all the individual Movie structs
 
     //actions only the owner can perform
     modifier onlyOwner() {
@@ -44,13 +40,12 @@ contract MovieTicket {
     function addMovie(
         string memory _title,
         uint256 _price,
-        uint256 _totalseats,
-        uint256 _showtime
+        uint256 _totalseats
     ) public onlyOwner {
         require(_price > 0, "Price must be more than 0");
         require(_totalseats > 0, "Total seats must be more than 0"); 
 
-        address[] memory emptyArray;
+        address[] memory emptyArray = new address[](0);
 
         movies[moviecount] = Movie({
             title: _title,
@@ -62,9 +57,10 @@ contract MovieTicket {
 
         moviecount++;
     }
+
     // Funtion to purchase movie tickets
     function buyTicket(string memory name) external{ 
-        uint balance = token.balanceOf(msg.sender);
+        uint balance = balanceOf(msg.sender);
         uint movieID = moviecount;
         for (uint i = 0; i < moviecount; i++) {
             if (keccak256(abi.encodePacked(movies[i].title)) == keccak256(abi.encodePacked(name))) {
@@ -74,15 +70,34 @@ contract MovieTicket {
         }
         require(movieID < moviecount, "movie does not exist");
         require(movies[movieID].availableseats != 0, "movie is full");
-        require(balance > movies[movieID].price, "Insufficient funds");
-        bool success = token.transferFrom(msg.sender, address(this), movies[movieID].price);
-        require(success, "Transfer failed");
-        movies[movieID].availableseats--;
-        movies[movieID].ticketHolders.push(msg.sender);
 
+        uint256 price = movies[movieID].price;
+
+        require(balance >= price, "Insufficient funds");
         
+        //bool success = transferFrom(msg.sender, address(this), movies[movieID].price);
+        //require(success, "Transfer failed");
+
+        _transfer(msg.sender, address(this), price);
+        
+        movies[movieID].availableseats--;
+        movies[movieID].ticketHolders.push(msg.sender);   
+    }
+
+    // Custom function: Mint new tokens (only by owner)
+    function mintTokens(address to, uint256 amount) external onlyOwner {
+        _mint(to, amount);
+    }
+
+    // Custom function: Burn tokens (user burns their own tokens)
+    function burnTokens(uint256 amount) external {
+        _burn(msg.sender, amount);
+    }
+
+    function getTicketHolders(uint movieId) public view returns (address[] memory) {
+        require(movieId < moviecount, "Invalid movie ID");
+        return movies[movieId].ticketHolders;
     }
 }
-
 
 
